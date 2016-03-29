@@ -22,6 +22,13 @@
 #include "plugin.h"
 
 #include "LogitechGkeyLib.h"
+#pragma comment(lib, "LogitechGkeyLib.lib")
+
+void __cdecl GkeySDKCallback(GkeyCode gkeyCode, wchar_t* gkeyOrButtonString, void* /*pContext*/)
+{
+   
+
+}
 
 static struct TS3Functions ts3Functions;
 
@@ -67,9 +74,9 @@ const char* ts3plugin_name() {
 	/* TeamSpeak expects UTF-8 encoded characters. Following demonstrates a possibility how to convert UTF-16 wchar_t into UTF-8. */
 	static char* result = NULL;  /* Static variable so it's allocated only once */
 	if(!result) {
-		const wchar_t* name = L"Test Plugin";
+		const wchar_t* name = L"TSG - Logitech G-Key Teamspeak plugin";
 		if(wcharToUtf8(name, &result) == -1) {  /* Convert name into UTF-8 encoded result */
-			result = "Test Plugin";  /* Conversion failed, fallback here */
+			result = "TSG - Logitech G-Key Teamspeak plugin";  /* Conversion failed, fallback here */
 		}
 	}
 	return result;
@@ -80,7 +87,7 @@ const char* ts3plugin_name() {
 
 /* Plugin version */
 const char* ts3plugin_version() {
-    return "1.2";
+    return "0.1";
 }
 
 /* Plugin API version. Must be the same as the clients API major version, else the plugin fails to load. */
@@ -91,13 +98,13 @@ int ts3plugin_apiVersion() {
 /* Plugin author */
 const char* ts3plugin_author() {
 	/* If you want to use wchar_t, see ts3plugin_name() on how to use */
-    return "TeamSpeak Systems GmbH";
+    return "Marco Casella";
 }
 
 /* Plugin description */
 const char* ts3plugin_description() {
 	/* If you want to use wchar_t, see ts3plugin_name() on how to use */
-    return "This plugin demonstrates the TeamSpeak 3 client plugin architecture.";
+    return "This plugin allow to use logitech g-key with teamspeak 3.";
 }
 
 /* Set TeamSpeak 3 callback functions */
@@ -127,6 +134,15 @@ int ts3plugin_init() {
 
 	printf("PLUGIN: App path: %s\nResources path: %s\nConfig path: %s\nPlugin path: %s\n", appPath, resourcesPath, configPath, pluginPath);
 
+
+   logiGkeyCBContext gkeyContext;
+   ZeroMemory(&gkeyContext, sizeof(gkeyContext));
+   gkeyContext.gkeyCallBack = (logiGkeyCB)GkeySDKCallback;
+   gkeyContext.gkeyContext = NULL;
+   
+   LogiGkeyInit(&gkeyContext);
+
+
     return 0;  /* 0 = success, 1 = failure, -2 = failure but client will not show a "failed to load" warning */
 	/* -2 is a very special case and should only be used if a plugin displays a dialog (e.g. overlay) asking the user to disable
 	 * the plugin again, avoiding the show another dialog by the client telling the user the plugin failed to load.
@@ -138,12 +154,14 @@ void ts3plugin_shutdown() {
     /* Your plugin cleanup code here */
     printf("PLUGIN: shutdown\n");
 
+    LogiGkeyShutdown();
+
 	/*
 	 * Note:
 	 * If your plugin implements a settings dialog, it must be closed and deleted here, else the
 	 * TeamSpeak client will most likely crash (DLL removed but dialog from DLL code still open).
 	 */
-
+    
 	/* Free pluginID if we registered it */
 	if(pluginID) {
 		free(pluginID);

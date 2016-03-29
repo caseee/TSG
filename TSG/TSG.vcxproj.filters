@@ -13,6 +13,12 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Resource Files\x86">
+      <UniqueIdentifier>{f9fc83b2-5a2f-4da2-be72-25a4064a609b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource Files\x64">
+      <UniqueIdentifier>{5cc996b0-5e99-47a8-a2f6-de5e6a19800a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\teamlog\logtypes.h">
@@ -50,5 +56,13 @@
     <ClCompile Include="src\plugin.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="lib\x64\LogitechGkeyLib.lib">
+      <Filter>Resource Files\x64</Filter>
+    </Library>
+    <Library Include="lib\x86\LogitechGkeyLib.lib">
+      <Filter>Resource Files\x86</Filter>
+    </Library>
   </ItemGroup>
 </Project>
