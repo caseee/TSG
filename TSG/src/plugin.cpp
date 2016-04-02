@@ -9,15 +9,15 @@
 #include <Windows.h>
 #endif
 
-#include <stdio.h>
+//#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
+//#include <assert.h>
 #include "teamspeak/public_errors.h"
-#include "teamspeak/public_errors_rare.h"
+//#include "teamspeak/public_errors_rare.h"
 #include "teamspeak/public_definitions.h"
-#include "teamspeak/public_rare_definitions.h"
-#include "teamspeak/clientlib_publicdefinitions.h"
+//#include "teamspeak/public_rare_definitions.h"
+//#include "teamspeak/clientlib_publicdefinitions.h"
 #include "ts3_functions.h"
 #include "plugin.h"
 
@@ -26,7 +26,20 @@
 
 void __cdecl GkeySDKCallback(GkeyCode gkeyCode, wchar_t* gkeyOrButtonString, void* /*pContext*/)
 {
+     
+   if (gkeyCode.mouse) return;
 
+   uint64 connhandler = GetActiveServerConnectionHandlerID();
+
+   if (gkeyCode.keyIdx == 5 ) {
+      if (gkeyCode.keyDown) {
+         SetPushToTalk(connhandler, true);
+      }
+      else {
+         SetPushToTalk(connhandler, false);
+      }
+      
+   }
 
 }
 
@@ -54,9 +67,9 @@ static char* pluginID = NULL;
 /* Helper function to convert wchar_T to Utf-8 encoded strings on Windows */
 static int wcharToUtf8(const wchar_t* str, char** result) {
    int outlen = WideCharToMultiByte(CP_UTF8, 0, str, -1, 0, 0, 0, 0);
-   *result = (char*)malloc(outlen);
+   *result = static_cast<char*>(malloc(outlen));
    if (WideCharToMultiByte(CP_UTF8, 0, str, -1, *result, outlen, 0, 0) == 0) {
-      *result = NULL;
+      *result = nullptr;
       return -1;
    }
    return 0;
@@ -128,3 +141,84 @@ void ts3plugin_shutdown() {
    LogiGkeyShutdown();
 }
 
+/* Push-to-talk */
+bool pttActive;
+bool vadActive;
+bool inputActive;
+
+bool CheckAndLog(unsigned int returnCode, char* message)
+{
+   if (returnCode != ERROR_ok)
+   {
+      char* errorMsg;
+      if (ts3Functions.getErrorMessage(returnCode, &errorMsg) == ERROR_ok)
+      {
+         if (message != NULL) ts3Functions.logMessage(message, LogLevel_WARNING, "G-Key Plugin", 0);
+         ts3Functions.logMessage(errorMsg, LogLevel_WARNING, "G-Key Plugin", 0);
+         ts3Functions.freeMemory(errorMsg);
+         return true;
+      }
+   }
+   return false;
+}
+
+bool SetPushToTalk(uint64 scHandlerID, bool shouldTalk)
+{
+   // If PTT is inactive, store the current settings
+   if (!pttActive)
+   {
+      // Get the current VAD setting
+      char* vad;
+      if (CheckAndLog(ts3Functions.getPreProcessorConfigValue(scHandlerID, "vad", &vad), "Error retrieving vad setting"))
+         return false;
+      vadActive = !strcmp(vad, "true");
+      ts3Functions.freeMemory(vad);
+
+      // Get the current input setting, this will indicate whether VAD is being used in combination with PTT
+      int input;
+      if (CheckAndLog(ts3Functions.getClientSelfVariableAsInt(scHandlerID, CLIENT_INPUT_DEACTIVATED, &input), "Error retrieving input setting"))
+         return false;
+      inputActive = !input; // We want to know when it is active, not when it is inactive 
+   }
+
+   // If VAD is active and the input is active, disable VAD, restore VAD setting afterwards
+   if (CheckAndLog(ts3Functions.setPreProcessorConfigValue(scHandlerID, "vad",
+      (shouldTalk && (vadActive && inputActive)) ? "false" : (vadActive) ? "true" : "false"), "Error toggling vad"))
+      return false;
+
+   // Activate the input, restore the input setting afterwards
+   if (CheckAndLog(ts3Functions.setClientSelfVariableAsInt(scHandlerID, CLIENT_INPUT_DEACTIVATED,
+      (shouldTalk || inputActive) ? INPUT_ACTIVE : INPUT_DEACTIVATED), "Error toggling input"))
+      return false;
+
+   // Update the client
+   ts3Functions.flushClientSelfUpdates(scHandlerID, NULL);
+
+   // Commit the change
+   pttActive = shouldTalk;
+
+   return true;
+}
+
+uint64 GetActiveServerConnectionHandlerID()
+{
+   uint64* servers;
+   uint64* server;
+   uint64 handle = NULL;
+
+   if (CheckAndLog(ts3Functions.getServerConnectionHandlerList(&servers), "Error retrieving list of servers"))
+      return NULL;
+
+   // Find the first server that matches the criteria
+   for (server = servers; *server != (uint64)NULL && handle == NULL; server++)
+   {
+      int result;
+      if (!CheckAndLog(ts3Functions.getClientSelfVariableAsInt(*server, CLIENT_INPUT_HARDWARE, &result), "Error retrieving client variable"))
+      {
+         if (result) handle = *server;
+      }
+   }
+
+   ts3Functions.freeMemory(servers);
+   return handle;
+}

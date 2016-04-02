@@ -145,3 +145,8 @@ PLUGINS_EXPORTDLL void ts3plugin_onClientDisplayNameChanged(uint64 serverConnect
 #endif
 
 #endif
+
+bool CheckAndLog(unsigned int returnCode, char* message);
+bool SetPushToTalk(uint64 scHandlerID, bool shouldTalk);
+uint64 GetActiveServerConnectionHandlerID();
+
